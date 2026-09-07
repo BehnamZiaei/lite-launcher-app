@@ -1,0 +1,6 @@
+{
+  "name": "Lite Launcher",
+  "description": "Ultra-lightweight minimalist Android launcher designed for minimum RAM footprint and battery savings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

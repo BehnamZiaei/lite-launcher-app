@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lite Launcher</string>
+    <string name="search_apps_hint">جستجوی برنامه‌ها…</string>
+    <string name="favorites_title">برنامه‌های منتخب</string>
+    <string name="all_apps_title">همه برنامه‌ها</string>
+    <string name="no_apps_found">برنامه‌ای یافت نشد</string>
+    <string name="ram_usage_label">مصرف رم</string>
+    <string name="ram_free_label">آزاد</string>
+    <string name="ram_used_label">مصرف‌شده</string>
+    <string name="ram_optimization_tip">لانچر لایت فوق‌العاده سبک است (~۱۵ مگابایت)</string>
+    <string name="settings_title">تنظیمات لانچر</string>
+    <string name="set_as_default_launcher">انتخاب به عنوان لانچر پیش‌فرض</string>
+    <string name="set_as_default_desc">تنظیم لایت لانچر به عنوان صفحه اصلی پیش‌فرض گوشی</string>
+    <string name="text_only_mode">حالت متنی فوق‌العاده سبک</string>
+    <string name="text_only_mode_desc">عدم بارگذاری آیکون‌ها برای حداکثر صرفه‌جویی در رم</string>
+    <string name="show_ram_status">نمایش وضعیت رم</string>
+    <string name="show_ram_status_desc">نمایش نشانگر زنده مصرف حافظه در صفحه اصلی</string>
+    <string name="show_clock">نمایش ساعت و تاریخ</string>
+    <string name="show_clock_desc">نمایش ساعت مینیمال در بالای صفحه</string>
+    <string name="hidden_apps_title">برنامه‌های مخفی</string>
+    <string name="hidden_apps_desc">مدیریت برنامه‌های مخفی‌شده از لیست</string>
+    <string name="clean_ram_action">بهینه‌سازی و پاکسازی کش رم</string>
+    <string name="clean_ram_desc">آزادسازی حافظه موقت و کش آیکون‌ها</string>
+    <string name="ram_trimmed_message">حافظه کش و رم لانچر با موفقیت آزاد شد</string>
+    <string name="action_pin">پین کردن به صفحه اصلی</string>
+    <string name="action_unpin">حذف از صفحه اصلی</string>
+    <string name="action_app_info">اطلاعات برنامه</string>
+    <string name="action_uninstall">لغو نصب</string>
+    <string name="action_hide">مخفی کردن برنامه</string>
+    <string name="action_unhide">خروج از حالت مخفی</string>
+    <string name="quick_launch">دسترسی سریع</string>
+</resources>
