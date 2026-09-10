@@ -24,7 +24,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val uiState by viewModel.uiState.collectAsState()
-            MyApplicationTheme(darkTheme = uiState.isDarkTheme) {
+            MyApplicationTheme(
+                darkTheme = uiState.isDarkTheme,
+                dynamicColor = uiState.isDynamicColor
+            ) {
                 LauncherScreen(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxSize()
@@ -35,10 +38,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh installed apps, frequent contacts, and RAM stats whenever returning to home screen
+        // Refresh installed apps, frequent contacts, and RAM/CPU stats whenever returning to home screen
         viewModel.loadApps()
         viewModel.loadFrequentContacts()
-        viewModel.updateRamStatus()
+        viewModel.updateSystemStatus()
     }
 }
 

@@ -5,9 +5,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppItem
+import com.example.data.AppSortOrder
 import com.example.data.ContactItem
 import com.example.data.LauncherRepository
 import com.example.data.RamStatus
+import com.example.util.CpuStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,20 +20,29 @@ data class LauncherUiState(
     val apps: List<AppItem> = emptyList(),
     val frequentContacts: List<ContactItem> = emptyList(),
     val hasContactsPermission: Boolean = false,
+    val hasCallPermission: Boolean = false,
     val searchQuery: String = "",
     val ramStatus: RamStatus = RamStatus(),
+    val cpuStatus: CpuStatus = CpuStatus(),
     val isTextOnlyMode: Boolean = false,
     val isDarkTheme: Boolean = true,
-    val isNothingStyle: Boolean = true,
+    val isDynamicColor: Boolean = true,
+    val isNothingStyle: Boolean = false,
+    val isPixelStyle: Boolean = true,
+    val isPagedApps: Boolean = true,
     val showFrequentContacts: Boolean = true,
     val showRamStatus: Boolean = true,
     val showRamWidget: Boolean = true,
+    val showCpuWidget: Boolean = true,
     val showQuickLaunchBar: Boolean = true,
     val showClock: Boolean = true,
+    val appSortOrder: AppSortOrder = AppSortOrder.ALPHABETICAL_ASC,
     val selectedAppForMenu: AppItem? = null,
     val showSettingsSheet: Boolean = false,
     val showHiddenAppsDialog: Boolean = false,
     val showQuickLaunchPicker: Boolean = false,
+    val showAboutDialog: Boolean = false,
+    val showReorderSheet: Boolean = false,
     val snackbarMessage: String? = null,
     val isLoading: Boolean = true
 ) {
@@ -50,6 +61,12 @@ data class LauncherUiState(
 
     val hiddenApps: List<AppItem>
         get() = apps.filter { it.isHidden }
+
+    val appPages: List<List<AppItem>>
+        get() {
+            val list = filteredApps
+            return if (list.isEmpty()) emptyList() else list.chunked(20)
+        }
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -59,12 +76,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         LauncherUiState(
             isTextOnlyMode = repository.preferences.isTextOnlyMode(),
             isDarkTheme = repository.preferences.isDarkTheme(),
+            isDynamicColor = repository.preferences.isDynamicColor(),
             isNothingStyle = repository.preferences.isNothingStyle(),
+            isPixelStyle = repository.preferences.isPixelStyle(),
+            isPagedApps = repository.preferences.isPagedApps(),
             showFrequentContacts = repository.preferences.isShowFrequentContacts(),
             showRamStatus = repository.preferences.isShowRamStatus(),
             showRamWidget = repository.preferences.isShowRamWidget(),
+            showCpuWidget = repository.preferences.isShowCpuWidget(),
             showQuickLaunchBar = repository.preferences.isShowQuickLaunchBar(),
-            showClock = repository.preferences.isShowClock()
+            showClock = repository.preferences.isShowClock(),
+            appSortOrder = repository.preferences.getAppSortOrder()
         )
     )
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -72,7 +94,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     init {
         loadApps()
         loadFrequentContacts()
-        updateRamStatus()
+        updateSystemStatus()
     }
 
     fun loadApps() {
@@ -80,6 +102,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             _uiState.update { it.copy(isLoading = true) }
             val apps = repository.getInstalledApps()
             val ram = repository.getRamStatus()
+            val cpu = repository.getCpuStatus()
 
             // If quick launch is empty on initial setup, seed default essentials (e.g. first 4 non-hidden apps)
             var currentQuickLaunch = repository.preferences.getQuickLaunchPackages()
@@ -98,15 +121,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 it.copy(
                     apps = mappedApps,
                     ramStatus = ram,
+                    cpuStatus = cpu,
                     isLoading = false
                 )
             }
         }
     }
 
-    fun updateRamStatus() {
+    fun updateSystemStatus() {
         val ram = repository.getRamStatus()
-        _uiState.update { it.copy(ramStatus = ram) }
+        val cpu = repository.getCpuStatus()
+        _uiState.update { it.copy(ramStatus = ram, cpuStatus = cpu) }
+    }
+
+    fun updateRamStatus() {
+        updateSystemStatus()
     }
 
     fun onSearchQueryChanged(query: String) {
@@ -216,6 +245,71 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(showRamWidget = enabled) }
     }
 
+    fun setShowCpuWidget(enabled: Boolean) {
+        repository.preferences.setShowCpuWidget(enabled)
+        _uiState.update { it.copy(showCpuWidget = enabled) }
+    }
+
+    fun setAppSortOrder(order: AppSortOrder) {
+        repository.preferences.setAppSortOrder(order)
+        _uiState.update { it.copy(appSortOrder = order) }
+        loadApps()
+    }
+
+    fun moveAppUp(app: AppItem) {
+        val currentApps = _uiState.value.apps.toMutableList()
+        val index = currentApps.indexOfFirst { it.packageName == app.packageName }
+        if (index > 0) {
+            val prev = currentApps[index - 1]
+            currentApps[index - 1] = app
+            currentApps[index] = prev
+            saveCustomOrder(currentApps)
+        }
+    }
+
+    fun moveAppDown(app: AppItem) {
+        val currentApps = _uiState.value.apps.toMutableList()
+        val index = currentApps.indexOfFirst { it.packageName == app.packageName }
+        if (index in 0 until currentApps.size - 1) {
+            val next = currentApps[index + 1]
+            currentApps[index + 1] = app
+            currentApps[index] = next
+            saveCustomOrder(currentApps)
+        }
+    }
+
+    fun moveAppToPage(app: AppItem, targetPageIndex: Int) {
+        val currentApps = _uiState.value.apps.toMutableList()
+        val index = currentApps.indexOfFirst { it.packageName == app.packageName }
+        if (index >= 0) {
+            currentApps.removeAt(index)
+            val targetIndex = (targetPageIndex * 20).coerceIn(0, currentApps.size)
+            currentApps.add(targetIndex, app)
+            saveCustomOrder(currentApps)
+        }
+    }
+
+    fun saveCustomOrder(orderedApps: List<AppItem>) {
+        val packages = orderedApps.map { it.packageName }
+        repository.preferences.setCustomAppOrder(packages)
+        repository.preferences.setAppSortOrder(AppSortOrder.CUSTOM)
+        _uiState.update {
+            it.copy(
+                apps = orderedApps,
+                appSortOrder = AppSortOrder.CUSTOM
+            )
+        }
+    }
+
+    fun resetAppOrderToDefault() {
+        repository.preferences.setCustomAppOrder(emptyList())
+        setAppSortOrder(AppSortOrder.ALPHABETICAL_ASC)
+    }
+
+    fun toggleReorderSheet(show: Boolean) {
+        _uiState.update { it.copy(showReorderSheet = show) }
+    }
+
     fun setShowQuickLaunchBar(enabled: Boolean) {
         repository.preferences.setShowQuickLaunchBar(enabled)
         _uiState.update { it.copy(showQuickLaunchBar = enabled) }
@@ -266,14 +360,33 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(showQuickLaunchPicker = show) }
     }
 
+    fun toggleAboutDialog(show: Boolean) {
+        _uiState.update { it.copy(showAboutDialog = show) }
+    }
+
     fun setDarkTheme(enabled: Boolean) {
         repository.preferences.setDarkTheme(enabled)
         _uiState.update { it.copy(isDarkTheme = enabled) }
     }
 
+    fun setDynamicColor(enabled: Boolean) {
+        repository.preferences.setDynamicColor(enabled)
+        _uiState.update { it.copy(isDynamicColor = enabled) }
+    }
+
     fun setNothingStyle(enabled: Boolean) {
         repository.preferences.setNothingStyle(enabled)
         _uiState.update { it.copy(isNothingStyle = enabled) }
+    }
+
+    fun setPixelStyle(enabled: Boolean) {
+        repository.preferences.setPixelStyle(enabled)
+        _uiState.update { it.copy(isPixelStyle = enabled) }
+    }
+
+    fun setPagedApps(enabled: Boolean) {
+        repository.preferences.setPagedApps(enabled)
+        _uiState.update { it.copy(isPagedApps = enabled) }
     }
 
     fun setShowFrequentContacts(enabled: Boolean) {
@@ -287,15 +400,28 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun loadFrequentContacts() {
         viewModelScope.launch {
             val hasPerm = repository.hasContactsPermission()
+            val hasCall = repository.hasCallPermission()
             val contacts = if (hasPerm) repository.getFrequentContacts() else emptyList()
             _uiState.update {
                 it.copy(
                     hasContactsPermission = hasPerm,
+                    hasCallPermission = hasCall,
                     frequentContacts = contacts
                 )
             }
         }
     }
+
+    fun updatePermissions() {
+        _uiState.update {
+            it.copy(
+                hasContactsPermission = repository.hasContactsPermission(),
+                hasCallPermission = repository.hasCallPermission()
+            )
+        }
+    }
+
+    fun hasCallPermission(): Boolean = repository.hasCallPermission()
 
     fun callContact(contact: com.example.data.ContactItem) {
         repository.callContact(contact.phoneNumber)

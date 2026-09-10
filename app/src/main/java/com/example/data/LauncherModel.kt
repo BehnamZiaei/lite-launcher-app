@@ -64,6 +64,12 @@ class LauncherPreferences(context: Context) {
         private const val KEY_DARK_THEME = "dark_theme"
         private const val KEY_SHOW_FREQUENT_CONTACTS = "show_frequent_contacts"
         private const val KEY_NOTHING_STYLE = "nothing_style"
+        private const val KEY_PIXEL_STYLE = "pixel_style"
+        private const val KEY_PAGED_APPS = "paged_apps"
+        private const val KEY_SHOW_CPU_WIDGET = "show_cpu_widget"
+        private const val KEY_APP_SORT_ORDER = "app_sort_order"
+        private const val KEY_CUSTOM_APP_ORDER = "custom_app_order"
+        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
     }
 
     fun getPinnedPackages(): Set<String> {
@@ -149,10 +155,72 @@ class LauncherPreferences(context: Context) {
     }
 
     fun isNothingStyle(): Boolean {
-        return prefs.getBoolean(KEY_NOTHING_STYLE, true) // Enabled by default for Nothing Phone users
+        return prefs.getBoolean(KEY_NOTHING_STYLE, false)
     }
 
     fun setNothingStyle(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_NOTHING_STYLE, enabled).apply()
     }
+
+    fun isPixelStyle(): Boolean {
+        return prefs.getBoolean(KEY_PIXEL_STYLE, true) // Enabled by default for Google Pixel experience
+    }
+
+    fun setPixelStyle(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PIXEL_STYLE, enabled).apply()
+    }
+
+    fun isPagedApps(): Boolean {
+        return prefs.getBoolean(KEY_PAGED_APPS, true) // Enabled by default for sliding pages
+    }
+
+    fun setPagedApps(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PAGED_APPS, enabled).apply()
+    }
+
+    fun isShowCpuWidget(): Boolean {
+        return prefs.getBoolean(KEY_SHOW_CPU_WIDGET, true)
+    }
+
+    fun setShowCpuWidget(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_CPU_WIDGET, enabled).apply()
+    }
+
+    fun getAppSortOrder(): AppSortOrder {
+        val name = prefs.getString(KEY_APP_SORT_ORDER, AppSortOrder.ALPHABETICAL_ASC.name)
+        return try {
+            AppSortOrder.valueOf(name ?: AppSortOrder.ALPHABETICAL_ASC.name)
+        } catch (e: Exception) {
+            AppSortOrder.ALPHABETICAL_ASC
+        }
+    }
+
+    fun setAppSortOrder(order: AppSortOrder) {
+        prefs.edit().putString(KEY_APP_SORT_ORDER, order.name).apply()
+    }
+
+    fun getCustomAppOrder(): List<String> {
+        val raw = prefs.getString(KEY_CUSTOM_APP_ORDER, null)
+        if (raw.isNullOrBlank()) return emptyList()
+        return raw.split(",").filter { it.isNotBlank() }
+    }
+
+    fun setCustomAppOrder(packages: List<String>) {
+        prefs.edit().putString(KEY_CUSTOM_APP_ORDER, packages.joinToString(",")).apply()
+    }
+
+    fun isDynamicColor(): Boolean {
+        return prefs.getBoolean(KEY_DYNAMIC_COLOR, true)
+    }
+
+    fun setDynamicColor(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
+    }
 }
+
+enum class AppSortOrder {
+    ALPHABETICAL_ASC,
+    ALPHABETICAL_DESC,
+    CUSTOM
+}
+

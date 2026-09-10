@@ -79,8 +79,28 @@ class LauncherRepository(private val context: Context) {
             )
         }
 
-        // Sort alphabetically, case-insensitive
-        appList.sortedBy { it.label.lowercase() }
+        // Sort according to user preference
+        val sortOrder = prefs.getAppSortOrder()
+        when (sortOrder) {
+            AppSortOrder.ALPHABETICAL_ASC -> appList.sortedBy { it.label.lowercase() }
+            AppSortOrder.ALPHABETICAL_DESC -> appList.sortedByDescending { it.label.lowercase() }
+            AppSortOrder.CUSTOM -> {
+                val customOrder = prefs.getCustomAppOrder()
+                if (customOrder.isEmpty()) {
+                    appList.sortedBy { it.label.lowercase() }
+                } else {
+                    val orderMap = customOrder.withIndex().associate { it.value to it.index }
+                    appList.sortedWith(compareBy(
+                        { orderMap[it.packageName] ?: Int.MAX_VALUE },
+                        { it.label.lowercase() }
+                    ))
+                }
+            }
+        }
+    }
+
+    fun getCpuStatus(): com.example.util.CpuStatus {
+        return com.example.util.CpuMonitorHelper.getCpuStatus(context)
     }
 
     fun getAppBitmap(packageName: String): Bitmap? {
@@ -210,14 +230,35 @@ class LauncherRepository(private val context: Context) {
         contactsList
     }
 
+    fun hasCallPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.CALL_PHONE
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     fun callContact(phoneNumber: String) {
         try {
-            val intent = Intent(Intent.ACTION_DIAL).apply {
+            val action = if (hasCallPermission()) {
+                Intent.ACTION_CALL
+            } else {
+                Intent.ACTION_DIAL
+            }
+            val intent = Intent(action).apply {
                 data = Uri.parse("tel:${Uri.encode(phoneNumber)}")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            try {
+                // Fallback to dial if ACTION_CALL encounters any security issue
+                val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+                    data = Uri.parse("tel:${Uri.encode(phoneNumber)}")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(dialIntent)
+            } catch (_: Exception) {}
+        }
     }
 
     fun getRamStatus(): RamStatus {

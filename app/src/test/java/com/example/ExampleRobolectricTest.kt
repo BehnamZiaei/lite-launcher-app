@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.example.data.AppItem
 import com.example.data.LauncherPreferences
 import com.example.data.RamStatus
+import com.example.util.PersianDateHelper
+import com.example.util.toPersianDigits
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -60,5 +62,49 @@ class ExampleRobolectricTest {
 
     assertTrue(app.isQuickLaunch)
     assertFalse(app.isPinned)
+  }
+
+  @Test
+  fun `pixel style and paged apps preferences persistence`() {
+    val context = ApplicationProvider.getApplicationContext<Context>()
+    val prefs = LauncherPreferences(context)
+
+    // Defaults should be true
+    assertTrue(prefs.isPixelStyle())
+    assertTrue(prefs.isPagedApps())
+
+    // Toggle off
+    prefs.setPixelStyle(false)
+    prefs.setPagedApps(false)
+    assertFalse(prefs.isPixelStyle())
+    assertFalse(prefs.isPagedApps())
+
+    // Toggle back on
+    prefs.setPixelStyle(true)
+    prefs.setPagedApps(true)
+    assertTrue(prefs.isPixelStyle())
+    assertTrue(prefs.isPagedApps())
+  }
+
+  @Test
+  fun `persian date calculation and formatting`() {
+    val cal = java.util.Calendar.getInstance()
+    cal.set(2026, java.util.Calendar.SEPTEMBER, 9, 12, 0)
+    val persianDate = PersianDateHelper.getPersianDate(cal.time)
+
+    assertEquals(1405, persianDate.year)
+    assertEquals(6, persianDate.month) // Shahrivar
+    assertEquals("شهریور", persianDate.monthName)
+    assertTrue(persianDate.day in 18..19)
+
+    val shortStr = persianDate.formatShort(toPersianDigits = true)
+    assertTrue(shortStr.contains("شهریور"))
+
+    val fullStr = persianDate.formatFull(toPersianDigits = true)
+    assertTrue(fullStr.contains("شهریور"))
+    assertTrue(fullStr.contains("۱۴۰۵"))
+
+    val testDigits = "1405/06/18".toPersianDigits()
+    assertEquals("۱۴۰۵/۰۶/۱۸", testDigits)
   }
 }
